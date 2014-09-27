@@ -1,5 +1,5 @@
 {
-  "name": "firesafe",
+  "name": "fireplan",
   "version": "0.0.1",
   "description": "Compiler for an alternative YAML-based syntax for Firebase security rules.",
   "keywords": [
@@ -11,11 +11,11 @@
   ],
   "main": "index.js",
   "bin": {
-    "firesafe": "firesafe"
+    "fireplan": "fireplan"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/pkaminski/firesafe.git"
+    "url": "https://github.com/pkaminski/fireplan.git"
   },
   "author": {
     "name": "Piotr Kaminski",
@@ -24,13 +24,13 @@
   "licenses": [
     {
       "type": "MIT",
-      "url": "https://github.com/pkaminski/firesafe/blob/master/LICENSE"
+      "url": "https://github.com/pkaminski/fireplan/blob/master/LICENSE"
     }
   ],
   "bugs": {
-    "url": "https://github.com/pkaminski/firesafe/issues"
+    "url": "https://github.com/pkaminski/fireplan/issues"
   },
-  "homepage": "https://github.com/pkaminski/firesafe",
+  "homepage": "https://github.com/pkaminski/fireplan",
   "dependencies": {
     "clone": "^0.1.18",
     "escodegen": "^1.4.1",
