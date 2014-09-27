@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+
+'use strict';
+
+var compiler = require('./index.js');
+var argv = require('yargs').usage('Usage: $0 path/to/rules.yaml').demand(1).argv;
+var fs = require('fs');
+var yaml = require('js-yaml');
+
+var rawSource = fs.readFileSync(argv._[0], 'utf8');
+var source = yaml.load(rawSource, {filename: argv._[0], schema: yaml.JSON_SCHEMA});
+var rules = compiler.transform(source);
+// console.log(JSON.stringify(rules, null, 2));
+fs.writeFileSync(argv._[0].replace(/\.ya?ml$/, '') + '.json', JSON.stringify(rules, null, 2));
