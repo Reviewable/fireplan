@@ -21,18 +21,19 @@ functions:
   - canUpdate(subject): root.users[auth.uid].permissions[subject].write
 
 root:
-  /data:
+  data:
     $subject:
       .read: true
       .write: canUpdate($subject)
-      value: percentage
-      /description: string
-  /users:
+      value: required percentage
+      description: string
+  users:
     $uid:
       .read/write: auth.uid == $uid
-      /permissions:
+      role: required oneOf('visitor', 'user', 'admin')
+      permissions:
         $subject:
-          write: boolean
+          write: required boolean
 ```
 
 Then compile it into `rules.json` like so:
@@ -72,18 +73,19 @@ foo:
 
 ### Children Properties
 
-A very common validation need is to check whether a property has the expected children.  You can do this manually using `hasChildren()` and `$other: false` catchalls, but Fireplan has a special syntax that makes it much easier.  By default, any child listed under a property is *required*, and writing the property will fail if any child is missing.  You can make a child optional by preceding its name with a `/`.  (Why a slash?  It's one of the few characters reserved by Firebase for use in key names.)  Normally no children other than the required and optional ones listed are allowed, but if you'd like to accept any others as well (with no further validation) you can add `.more: true` to the property.
+A very common validation need is to check whether a property has the expected children.  You can do this manually using `hasChildren()` and `$other: false` catchalls, but Fireplan has a special syntax that makes it much easier.  By default, any child listed under a property is optional but you can make it required by starting its value constraint with the keyword `required`.  Normally no children other than the required and optional ones listed are allowed, but if you'd like to accept any others as well (with no further validation) you can add `.more: true` to the property.
 
 Putting it all together looks like this:
 ```yaml
 root:
-  /foo:
-    bar: string
+  foo:
+    bar: required string
     baz:
-      /qux: number
+      .value: required
+      qux: number
       .more: true
 ```
-This means that `/foo` is optional, but if written it must have children `bar` (a string) and `baz`, and no others.   In turn, `baz` can have any children at all, but if `qux` is specified then it must be a number.
+This means that `foo` is optional, but if written it must have children `bar` (a string) and `baz`, and no others.   In turn, `baz` can have any children at all, but if `qux` is specified then it must be a number.
 
 ### Functions
 
@@ -95,13 +97,34 @@ functions:
 ```
 A function can take any number of arguments; if it doesn't take any, you can leave out the empty parentheses.  Function names must be unique (there's no dispatch on the number of arguments).  A function's body is an expression just like that of any security rule, and can access the function's arguments as well as the usual security rules globals (`auth`, `next`, etc.).
 
-Functions are called in the usual way, like `foo('bar', next.baz)`.  A function can call other functions in its body but recursion is forbidden (and will crash the compiler).  If a function doesn't take arguments you can also call it without parentheses, like `foo2`.  This is especially convenient for defining new "value types", like `percentage` in the example at the top.  Fireplan predefines the three value types `string`, `boolean` and `number` like so:
+Functions are called in the usual way, like `foo('bar', next.baz)`.  A function can call other functions in its body but recursion is forbidden (and will crash the compiler).  If a function doesn't take arguments you can also call it without parentheses, like `foo2`.  This is especially convenient for defining new "value types", like `percentage` in the example at the top.
+
+### Types
+
+Fireplan predefines three value types `string`, `boolean` and `number` like so:
 ```yaml
 functions:
   - string: next.isString()
   - boolean: next.isBoolean()
   - number: next.isNumber()
 ```
+
+There's also a special predefined function `oneOf` that is used to constrain a property to one of a list of values (typically strings).  Use it like this (and prefix with `required` to taste):
+```yaml
+root:
+  foo: oneOf('bar', 'baz', 'qux')
+```
+
+Finally, for object types, you can apply YAML's referencing mechanism to reuse a definition in multiple places:
+```yaml
+root:
+  foo: &fooType  # establish a reference called fooType
+    bar: string
+    baz: required number
+  qux: *fooType  # dereference fooType
+    # bar and baz are filled in here automatically
+```
+If you want, you can set up a separate `types:` hierarchy and define type references there&mdash;Fireplan doesn't care if you have extra top-level keys.
 
 ## That's All!
 

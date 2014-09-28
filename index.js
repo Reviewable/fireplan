@@ -24,7 +24,8 @@ Compiler.prototype.defineFunctions = function() {
   this.source.functions.push(
     {'boolean': 'next.isBoolean()'},
     {'string': 'next.isString()'},
-    {'number': 'next.isNumber()'}
+    {'number': 'next.isNumber()'},
+    {'any': 'true'}
   );
   this.functions = {};
   _.each(this.source.functions, function(definition) {
@@ -55,6 +56,7 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
   _.each(yaml, function(value, key) {
     switch(key) {
       case '.value':
+        value = value.replace(/^\s*required\s*/, '');  // fall through
       case '.read':
       case '.write':
       case '.read/write':
@@ -70,8 +72,9 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
           if (hasWildcard) throw new Error('Only one wildcard allowed per object: ' + key);
           locals = locals.concat([key]);
           hasWildcard = true;
-        } else {
-          if (firstChar === '/') key = key.slice(1); else requiredChildren.push(key);
+        }
+        if (value && /^\s*required\s*/.test(_.isString(value) ? value : value['.value'])) {
+          requiredChildren.push(key);
         }
         json[key] = this.transformBranch(value, locals);
     }
@@ -101,10 +104,16 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
 Compiler.prototype.expandExpression = function(expression, locals) {
   if (_.isBoolean(expression)) expression = '' + expression;
   if (!_.isString(expression)) throw new Error('Expression expected, got: ' + expression);
+  // console.log('expand', expression);
   var ast = this.transformAst(esprima.parse(expression), locals);
   // console.log(JSON.stringify(ast, null, 2));
   return this.generate(ast);
 };
+
+var NEW_DATA_VAL = {type: 'CallExpression', arguments: [], callee: {
+  type: 'MemberExpression', computed: false, object: {type: 'Identifier', name: 'newData'},
+  property: {type: 'Identifier', name: 'val'}
+}};
 
 Compiler.prototype.transformAst = function(ast, locals) {
   this.changed = false;
@@ -123,7 +132,7 @@ Compiler.prototype.transformAst = function(ast, locals) {
           case 'data': node.output = 'snapshot'; break;
           default:
             var local = _.contains(locals, node.name);
-            if (!(local || node.name in self.functions)) {
+            if (!(local || node.name in self.functions || node.name === 'oneOf')) {
               throw new Error('Unknown reference: ' + node.name);
             }
             if (!local && !(parent.type === 'MemberExpression' ||
@@ -169,25 +178,37 @@ Compiler.prototype.transformAst = function(ast, locals) {
       if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
         if (_.contains(locals, node.callee.name)) return;
         self.changed = true;
-        var fn = self.functions[node.callee.name];
-        if (!fn) throw new Error('Call to undefined function: ' + self.generate(node));
-        if (node.arguments.length !== fn.args.length) {
-          throw new Error('Number of arguments in call differs from signature: ' +
-            self.generate(note) + ' vs ' + node.callee.name + '(' + fn.args.join(', ') + ')');
-        }
-        var bindings = {};
-        _.each(_.zip(fn.args, node.arguments), function(pair) {
-          bindings[pair[0]] = pair[1];
-        });
-        node = estraverse.replace(clone(fn.ast, false), {
-          enter: function(node, parent) {
-            if (!node) return;
-            if (node.type === 'Identifier' && node.name in bindings && !(
-                parent.type === 'MemberExpression' && !parent.computed && parent.property === node)) {
-              return bindings[node.name];
-            }
+        if (node.callee.name === 'oneOf') {
+          var condition = {
+            type: 'BinaryExpression', operator: '==', left: NEW_DATA_VAL, right: node.arguments[0]
+          };
+          _.each(node.arguments.slice(1), function(arg) {
+            condition = {type: 'LogicalExpression', operator: '||', left: condition, right: {
+              type: 'BinaryExpression', operator: '==', left: NEW_DATA_VAL, right: arg
+            }};
+          });
+          node = condition;
+        } else {
+          var fn = self.functions[node.callee.name];
+          if (!fn) throw new Error('Call to undefined function: ' + self.generate(node));
+          if (node.arguments.length !== fn.args.length) {
+            throw new Error('Number of arguments in call differs from signature: ' +
+              self.generate(note) + ' vs ' + node.callee.name + '(' + fn.args.join(', ') + ')');
           }
-        });
+          var bindings = {};
+          _.each(_.zip(fn.args, node.arguments), function(pair) {
+            bindings[pair[0]] = pair[1];
+          });
+          node = estraverse.replace(clone(fn.ast, false), {
+            enter: function(node, parent) {
+              if (!node) return;
+              if (node.type === 'Identifier' && node.name in bindings && !(
+                  parent.type === 'MemberExpression' && !parent.computed && parent.property === node)) {
+                return bindings[node.name];
+              }
+            }
+          });
+        }
       }
       return node;
     }
