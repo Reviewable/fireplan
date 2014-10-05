@@ -143,9 +143,10 @@ Compiler.prototype.transformAst = function(ast, locals) {
         }
       }
       if (node.type === 'CallExpression' && (
-          node.callee.type === 'Identifier' && node.callee.name === 'child' ||
-          node.callee.type === 'MemberExpression' && !node.callee.computed &&
-          node.callee.property.name === 'child'
+          node.callee.type === 'Identifier' && (
+            node.callee.name === 'child' || node.callee.name === 'parent') ||
+          node.callee.type === 'MemberExpression' && !node.callee.computed && (
+            node.callee.property.name === 'child' || node.callee.property.name === 'parent')
       )) {
         node.output = 'snapshot';
       }
