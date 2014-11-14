@@ -56,7 +56,8 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
   _.each(yaml, function(value, key) {
     switch(key) {
       case '.value':
-        value = value.replace(/^\s*required\s*/, '');  // fall through
+        value = value.replace(/^\s*required\s*/, '');
+        if (value.trim() === 'any') moreAllowed = true;  // fall through
       case '.read':
       case '.write':
       case '.read/write':

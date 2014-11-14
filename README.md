@@ -107,6 +107,7 @@ functions:
   - string: next.isString()
   - boolean: next.isBoolean()
   - number: next.isNumber()
+  - any: true  # also implies .more: true for this child
 ```
 
 There's also a special predefined function `oneOf` that is used to constrain a property to one of a list of values (typically strings).  Use it like this (and prefix with `required` to taste):
