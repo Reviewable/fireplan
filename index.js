@@ -51,12 +51,12 @@ Compiler.prototype.defineFunctions = function() {
 Compiler.prototype.transformBranch = function(yaml, locals) {
   var json = {};
   if (_.isString(yaml)) yaml = {'.value': yaml};
-  var requiredChildren = [];
+  var requiredChildren = [], indexedChildren = [];
   var moreAllowed = false, hasWildcard = false;
   _.each(yaml, function(value, key) {
     switch(key) {
       case '.value':
-        value = value.replace(/^\s*required\s*/, '');
+        value = value.replace(/^\s*((required|indexed)(\s+|$))*/, '');
         if (value.trim() === 'any') moreAllowed = true;  // fall through
       case '.read':
       case '.write':
@@ -74,8 +74,17 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
           locals = locals.concat([key]);
           hasWildcard = true;
         }
-        if (value && /^\s*required\s*/.test(_.isString(value) ? value : value['.value'])) {
-          requiredChildren.push(key);
+        var constraint = value && (_.isString(value) ? value : value['.value']);
+        if (constraint) {
+          var match = constraint.match(/^\s*((required|indexed)(\s+|$))*/);
+          if (match) {
+            var keywords = match[0].split(/\s+/);
+            if (keywords.length > 1 && _.uniq(keywords).length !== keywords.length) {
+              throw new Error('Duplicated child property keywords: ' + key + ' -> ' + match[0]);
+            }
+            if (_.contains(keywords, 'required')) requiredChildren.push(key);
+            if (_.contains(keywords, 'indexed')) indexedChildren.push(key);
+          }
         }
         json[key] = this.transformBranch(value, locals);
     }
@@ -97,6 +106,7 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
       _.map(requiredChildren, function(childName) {return "'" + childName + "'";}).join(', ') +
       '])';
   }
+  if (indexedChildren.length) json['.indexOn'] = indexedChildren;
   if (validation) json['.validate'] = validation;
   if (!moreAllowed && !hasWildcard) json.$other = {'.validate': false};
   return json;
@@ -195,7 +205,7 @@ Compiler.prototype.transformAst = function(ast, locals) {
           if (!fn) throw new Error('Call to undefined function: ' + self.generate(node));
           if (node.arguments.length !== fn.args.length) {
             throw new Error('Number of arguments in call differs from signature: ' +
-              self.generate(note) + ' vs ' + node.callee.name + '(' + fn.args.join(', ') + ')');
+              self.generate(node) + ' vs ' + node.callee.name + '(' + fn.args.join(', ') + ')');
           }
           var bindings = {};
           _.each(_.zip(fn.args, node.arguments), function(pair) {
@@ -205,7 +215,8 @@ Compiler.prototype.transformAst = function(ast, locals) {
             enter: function(node, parent) {
               if (!node) return;
               if (node.type === 'Identifier' && node.name in bindings && !(
-                  parent.type === 'MemberExpression' && !parent.computed && parent.property === node)) {
+                  parent.type === 'MemberExpression' && !parent.computed &&
+                  parent.property === node)) {
                 return bindings[node.name];
               }
             }
