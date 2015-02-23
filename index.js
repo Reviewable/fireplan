@@ -51,7 +51,7 @@ Compiler.prototype.defineFunctions = function() {
 Compiler.prototype.transformBranch = function(yaml, locals) {
   var json = {};
   if (_.isString(yaml)) yaml = {'.value': yaml};
-  var requiredChildren = [], indexedChildren = [];
+  var requiredChildren = [], indexedChildren = [], indexedGrandChildren = [];
   var moreAllowed = false, hasWildcard = false;
   _.each(yaml, function(value, key) {
     switch(key) {
@@ -82,11 +82,24 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
             if (keywords.length > 1 && _.uniq(keywords).length !== keywords.length) {
               throw new Error('Duplicated child property keywords: ' + key + ' -> ' + match[0]);
             }
-            if (_.contains(keywords, 'required')) requiredChildren.push(key);
-            if (_.contains(keywords, 'indexed')) indexedChildren.push(key);
+            if (_.contains(keywords, 'required')) {
+              if (firstChar === '$') throw new Error('Wildcard children cannot be required');
+              requiredChildren.push(key);
+            }
+            if (_.contains(keywords, 'indexed')) {
+              if (firstChar === '$') {
+                indexedChildren.push('.value');
+              } else {
+                indexedGrandChildren.push(key);
+              }
+            }
           }
         }
         json[key] = this.transformBranch(value, locals);
+        if (json[key]['.indexChildrenOn']) {
+          indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
+          delete json[key]['.indexChildrenOn'];
+        }
     }
   }, this);
   if (yaml['.read/write']) {
@@ -107,6 +120,7 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
       '])';
   }
   if (indexedChildren.length) json['.indexOn'] = indexedChildren;
+  if (indexedGrandChildren.length) json['.indexChildrenOn'] = indexedGrandChildren;
   if (validation) json['.validate'] = validation;
   if (!moreAllowed && !hasWildcard) json.$other = {'.validate': false};
   return json;
