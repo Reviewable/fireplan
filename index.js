@@ -16,7 +16,11 @@ function Compiler(source) {
 
 Compiler.prototype.transform = function() {
   this.defineFunctions();
-  return {rules: this.transformBranch(this.source.root, [])};
+  var tree = this.transformBranch(this.source.root, []);
+  if (tree['.indexChildrenOn']) {
+    throw new Error('Indexed attributes must be at least two levels deep in the tree.');
+  }
+  return {rules: tree};
 };
 
 Compiler.prototype.defineFunctions = function() {
