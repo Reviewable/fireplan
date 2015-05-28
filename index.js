@@ -182,6 +182,7 @@ Compiler.prototype.transformAst = function(ast, locals) {
     },
     leave: function(node, parent) {
       if (!node) return;
+      var originalNode = node;
       if (node.type === 'MemberExpression' && parent.type !== 'CallExpression' &&
           node.object.output === 'snapshot') {
         self.changed = true;
@@ -195,7 +196,9 @@ Compiler.prototype.transformAst = function(ast, locals) {
           ]
         };
       }
-      if (node.output === 'snapshot' && parent.type !== 'MemberExpression') {
+      if (node.output === 'snapshot' &&
+          (parent.type !== 'MemberExpression' ||
+           parent.computed && parent.property === originalNode)) {
         self.changed = true;
         node = {
           type: 'CallExpression', callee: {
