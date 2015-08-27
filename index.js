@@ -6,6 +6,10 @@ var escodegen = require('escodegen');
 var estraverse = require('estraverse');
 var clone = require('clone');
 
+var BUILTINS = {
+  auth: true, now: true, root: true, next: true, newData: true, prev: true, data: true
+};
+
 exports.transform = function(source) {
   return new Compiler(source).transform();
 };
@@ -38,17 +42,24 @@ Compiler.prototype.defineFunctions = function() {
       if (!match) throw new Error('Invalid function signature: ' + signature);
       var name = match[1];
       var args = _.compact(_.map((match[2] || '').split(','), function(arg) {return arg.trim();}));
+      _.each(args, function(arg) {
+        if (arg in BUILTINS) {
+          throw new Error('Argument name "' + arg + '" shadows builtin variable');
+        }
+      });
       if (name in this.functions) throw new Error('Duplicate function definition: ' + name);
       this.functions[name] = {name: name, args: args, ast: esprima.parse(body).body[0].expression};
     }, this);
   }, this);
   var changed = true;
   while (changed) {
+    /*jshint -W083 */
     changed = false;
     _.each(this.functions, function(fn, name) {
       fn.ast = this.transformAst(fn.ast, fn.args);
       changed = changed || this.changed;
     }, this);
+    /*jshint +W083 */
   }
 };
 
@@ -61,7 +72,8 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
     switch(key) {
       case '.value':
         value = value.replace(/^\s*((required|indexed)(\s+|$))*/, '');
-        if (value.trim() === 'any') moreAllowed = true;  // fall through
+        if (value.trim() === 'any') moreAllowed = true;
+        /* fall through */
       case '.read':
       case '.write':
       case '.read/write':
@@ -120,7 +132,7 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
     if (validation) validation = '(' + validation + ') && ';
     validation +=
       'newData.hasChildren([' +
-      _.map(requiredChildren, function(childName) {return "'" + childName + "'";}).join(', ') +
+      _.map(requiredChildren, function(childName) {return '\'' + childName + '\'';}).join(', ') +
       '])';
   }
   if (indexedChildren.length) json['.indexOn'] = indexedChildren;
@@ -155,9 +167,11 @@ Compiler.prototype.transformAst = function(ast, locals) {
         switch (node.name) {
           case 'auth': case 'now': return;
           case 'root': node.output = 'snapshot'; break;
-          case 'next': node.name = 'newData';  // fall through
+          case 'next': node.name = 'newData';
+          /* fall through */
           case 'newData': node.output = 'snapshot'; break;
-          case 'prev': node.name = 'data';  // fall through
+          case 'prev': node.name = 'data';
+          /* fall through */
           case 'data': node.output = 'snapshot'; break;
           default:
             var local = _.contains(locals, node.name);
@@ -183,12 +197,12 @@ Compiler.prototype.transformAst = function(ast, locals) {
     leave: function(node, parent) {
       if (!node) return;
       var originalNode = node;
-      if (node.type === 'MemberExpression' && parent.type !== 'CallExpression' &&
-          node.object.output === 'snapshot') {
+      if (node.type === 'MemberExpression' && node.object.output === 'snapshot' && !(
+            parent.type === 'CallExpression' && parent.callee === node)) {
         self.changed = true;
         node = {
           type: 'CallExpression', output: 'snapshot', callee: {
-            type: 'MemberExpression', object: node.object, property: {
+            type: 'MemberExpression', object: node.object, computed: false, property: {
               type: 'Identifier', name: 'child'
             }
           }, arguments: [node.computed ?
