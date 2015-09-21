@@ -131,6 +131,14 @@ root:
 ```
 If you want, you can set up a separate `types:` hierarchy and define type references there&mdash;Fireplan doesn't care if you have extra top-level keys.
 
+### Environment
+
+Fireplan makes available a special `env` variable that lets you substitute environment variable values at compile time.  For example, if you need to distinguish between the development and production datastores in your rules, you could set `export DATASTORE=dev` or `export DATASTORE=prod` in your build, then check for it in your rules like so:
+```yaml
+root:
+  .write: env.DATASTORE == 'dev'
+```
+
 ## That's All!
 
 Please let me know if you have any problems.

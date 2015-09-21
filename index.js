@@ -7,7 +7,7 @@ var estraverse = require('estraverse');
 var clone = require('clone');
 
 var BUILTINS = {
-  auth: true, now: true, root: true, next: true, newData: true, prev: true, data: true
+  auth: true, now: true, root: true, next: true, newData: true, prev: true, data: true, env: true
 };
 
 exports.transform = function(source) {
@@ -175,7 +175,8 @@ Compiler.prototype.transformAst = function(ast, locals) {
           case 'data': node.output = 'snapshot'; break;
           default:
             var local = _.contains(locals, node.name);
-            if (!(local || node.name in self.functions || node.name === 'oneOf')) {
+            if (!(local || node.name in self.functions || node.name === 'oneOf' ||
+                  node.name === 'env')) {
               throw new Error('Unknown reference: ' + node.name);
             }
             if (!local && !(parent.type === 'MemberExpression' ||
@@ -197,6 +198,21 @@ Compiler.prototype.transformAst = function(ast, locals) {
     leave: function(node, parent) {
       if (!node) return;
       var originalNode = node;
+      if (node.type === 'MemberExpression' && node.object.type === 'Identifier' &&
+          node.object.name === 'env') {
+        var envValue;
+        if (node.computed) {
+          if (node.property.type === 'Literal') {
+            envValue = process.env[node.property.value];
+          } else {
+            throw new Error('Unable to expand env variable with computed name: ' + node.property);
+          }
+        } else {
+          envValue = process.env[node.property.name];
+        }
+        envValue = envValue || '';
+        node = {type: 'Literal', value: envValue, raw: envValue};
+      }
       if (node.type === 'MemberExpression' && node.object.output === 'snapshot' && !(
             parent.type === 'CallExpression' && parent.callee === node)) {
         self.changed = true;
