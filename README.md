@@ -75,7 +75,7 @@ foo:
 
 A very common validation need is to check whether a property has the expected children.  You can do this manually using `hasChildren()` and `$other: false` catchalls, but Fireplan has a special syntax that makes it much easier.  By default, any child listed under a property is optional but you can make it required by starting its value constraint with the keyword `required`.  Normally no children other than the required and optional ones listed are allowed, but if you'd like to accept any others as well (with no further validation) you can add `.more: true` to the property.
 
-To make some Firebase queries run efficiently you also need to earmark some children for indexing.  You can do this by adding the keyword `indexed` to a child's value constraint.  (If both `required` and `indexed` are used together, they can come in any order but must precede any other constraint code.)  All children marked as `indexed` will be collected into their parent's Firebase `.indexOn` property.
+To make some Firebase queries run efficiently you also need to earmark some children for indexing.  You can do this by adding the keyword `indexed` to a child's value constraint.  (If both `required` and `indexed` are used together, they can come in any order but must precede any other constraint code.)  All children marked as `indexed` will be collected into the Firebase `.indexOn` property of the parent of their nearest wildcard (<code>$_keyCapture_</code>) ancestor, creating "deep" indexes automatically as necessary.
 
 Putting it all together looks like this:
 ```yaml

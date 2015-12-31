@@ -113,7 +113,15 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
         }
         json[key] = this.transformBranch(value, locals);
         if (json[key]['.indexChildrenOn']) {
-          indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
+          if (firstChar === '$') {
+            indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
+          } else {
+            indexedGrandChildren = indexedGrandChildren.concat(
+              _.map(json[key]['.indexChildrenOn'], function(indexKey) {
+                return key + '/' + indexKey;
+              })
+            );
+          }
           delete json[key]['.indexChildrenOn'];
         }
     }
