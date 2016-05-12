@@ -22,7 +22,8 @@ Compiler.prototype.transform = function() {
   this.defineFunctions();
   var tree = this.transformBranch(this.source.root, []);
   if (tree['.indexChildrenOn']) {
-    throw new Error('Indexed attributes must be at least two levels deep in the tree.');
+    throw new Error(
+      'Indexed attributes must be nested under a wildard key: ' + tree['.indexChildrenOn']);
   }
   return {rules: tree};
 };
