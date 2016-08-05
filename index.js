@@ -25,7 +25,8 @@ Compiler.prototype.transform = function() {
     throw new Error(
       'Indexed attributes must be nested under a wildard key: ' + tree['.indexChildrenOn']);
   }
-  return {rules: tree};
+  var encryptTree = this.extractEncryptDirectives(tree);
+  return {rules: tree, firecrypt: encryptTree};
 };
 
 Compiler.prototype.defineFunctions = function() {
@@ -72,7 +73,7 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
   _.each(yaml, function(value, key) {
     switch(key) {
       case '.value':
-        value = value.replace(/^\s*((required|indexed)(\s+|$))*/, '');
+        value = value.replace(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/, '');
         if (value.trim() === 'any') moreAllowed = true;
         /* fall through */
       case '.read':
@@ -84,6 +85,11 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
         moreAllowed = value;
         break;
       default:
+        var keyEncryptionPattern;
+        key = key.replace(/\/encrypted(\[.*?\])?$/, function(match, pattern) {
+          keyEncryptionPattern = pattern ? pattern.slice(1, -1) : '#';
+          return '';
+        });
         var firstChar = key.charAt(0);
         if (firstChar === '.') throw new Error('Unknown control key: ' + key);
         if (firstChar === '$') {
@@ -91,12 +97,16 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
           locals = locals.concat([key]);
           hasWildcard = true;
         }
+        json[key] = this.transformBranch(value, locals);
+        if (keyEncryptionPattern) json[key]['.encrypt'] = {key: keyEncryptionPattern};
         var constraint = value && (_.isString(value) ? value : value['.value']);
         if (constraint) {
-          var match = constraint.match(/^\s*((required|indexed)(\s+|$))*/);
+          var match = constraint.match(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/);
           if (match) {
             var keywords = match[0].split(/\s+/);
-            if (keywords.length > 1 && _.uniq(keywords).length !== keywords.length) {
+            if (keywords.length > 1 && _.uniq(_.map(keywords, function(keyword) {
+              return keyword.replace(/encrypted\[.*?\]/, 'encrypted');
+            })).length !== keywords.length) {
               throw new Error('Duplicated child property keywords: ' + key + ' -> ' + match[0]);
             }
             if (_.contains(keywords, 'required')) {
@@ -110,9 +120,16 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
                 indexedGrandChildren.push(key);
               }
             }
+            _.each(keywords, function(keyword) {
+              var match = keyword.match(/^encrypted(\[.*?\])?$/);
+              if (!match) return;
+              var pattern = match[1];
+              if (pattern) pattern = pattern.slice(1, -1);
+              var encrypt = json[key]['.encrypt'] = json[key]['.encrypt'] || {};
+              encrypt.value = pattern || '#';
+            });
           }
         }
-        json[key] = this.transformBranch(value, locals);
         if (json[key]['.indexChildrenOn']) {
           if (firstChar === '$') {
             indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
@@ -154,10 +171,15 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
 Compiler.prototype.expandExpression = function(expression, locals) {
   if (_.isBoolean(expression)) expression = '' + expression;
   if (!_.isString(expression)) throw new Error('Expression expected, got: ' + expression);
-  // console.log('expand', expression);
-  var ast = this.transformAst(esprima.parse(expression), locals);
-  // console.log(JSON.stringify(ast, null, 2));
-  return this.generate(ast);
+  try {
+    // console.log('expand', expression);
+    var ast = this.transformAst(esprima.parse(expression), locals);
+    // console.log(JSON.stringify(ast, null, 2));
+    return this.generate(ast);
+  } catch (e) {
+    e.message += ' in ' + expression;
+    throw e;
+  }
 };
 
 var NEW_DATA_VAL = {type: 'CallExpression', arguments: [], callee: {
@@ -290,4 +312,15 @@ Compiler.prototype.transformAst = function(ast, locals) {
 
 Compiler.prototype.generate = function(ast) {
   return escodegen.generate(ast, {format: {semicolons: false, newline: ' '}});
+};
+
+Compiler.prototype.extractEncryptDirectives = function(tree) {
+  if (!_.isObject(tree)) return;
+  var encryptTree = {};
+  _.each(tree, function(value, key) {
+    if (key !== '.encrypt') value = this.extractEncryptDirectives(tree[key]);
+    if (value) encryptTree[key] = value;
+  }, this);
+  delete tree['.encrypt'];
+  if (!_.isEmpty(encryptTree)) return encryptTree;
 };

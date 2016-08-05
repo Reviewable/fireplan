@@ -139,6 +139,10 @@ root:
   .write: env.DATASTORE == 'dev'
 ```
 
+### Encryption
+
+Fireplan supports [Firecrypt](https://github.com/pkaminski/firecrypt) encryption annotations.  You can prefix a `.value` rule with the keyword `encrypted` (mixed in any order with `required` and `indexed`), or suffix a key with `/encrypted`, to indicate that that value or key needs to be encrypted.  You can additionally include a pattern after the keyword to indicate which parts of the key or string value should be encrypted, like `encrypted[#-#-.]`, where `#` indicates an encrypted chunk and `.` an unencrypted one.  If any `encrypted` annotations are present, Fireplan will emit a `rules_firecrypt.json` file that you can then feed into Firecrypt.
+
 ## That's All!
 
 Please let me know if you have any problems.

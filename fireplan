@@ -11,4 +11,13 @@ var rawSource = fs.readFileSync(argv._[0], 'utf8');
 var source = yaml.load(rawSource, {filename: argv._[0], schema: yaml.DEFAULT_SAFE_SCHEMA});
 var rules = compiler.transform(source);
 // console.log(JSON.stringify(rules, null, 2));
-fs.writeFileSync(argv._[0].replace(/\.ya?ml$/, '') + '.json', JSON.stringify(rules, null, 2));
+fs.writeFileSync(
+  argv._[0].replace(/\.ya?ml$/, '') + '.json',
+  JSON.stringify({rules: rules.rules}, null, 2)
+);
+if (rules.firecrypt) {
+  fs.writeFileSync(
+    argv._[0].replace(/\.ya?ml$/, '') + '_firecrypt.json',
+    JSON.stringify({rules: rules.firecrypt}, null, 2)
+  );
+}
