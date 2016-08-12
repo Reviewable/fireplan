@@ -98,7 +98,7 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
           hasWildcard = true;
         }
         json[key] = this.transformBranch(value, locals);
-        if (keyEncryptionPattern) json[key]['.encrypt'] = {key: keyEncryptionPattern};
+        if (keyEncryptionPattern !== undefined) json[key]['.encrypt'] = {key: keyEncryptionPattern};
         var constraint = value && (_.isString(value) ? value : value['.value']);
         if (constraint) {
           var match = constraint.match(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/);
