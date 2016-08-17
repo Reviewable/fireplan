@@ -97,8 +97,8 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
           locals = locals.concat([key]);
           hasWildcard = true;
         }
-        json[key] = this.transformBranch(value, locals);
         if (keyEncryptionPattern !== undefined) json[key]['.encrypt'] = {key: keyEncryptionPattern};
+        var encrypt;
         var constraint = value && (_.isString(value) ? value : value['.value']);
         if (constraint) {
           var match = constraint.match(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/);
@@ -125,11 +125,14 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
               if (!match) return;
               var pattern = match[1];
               if (pattern) pattern = pattern.slice(1, -1);
-              var encrypt = json[key]['.encrypt'] = json[key]['.encrypt'] || {};
-              encrypt.value = pattern || '#';
+              encrypt = {value: pattern || '#'};
             });
           }
         }
+        // Transform *after* extracting all keywords, since processing a .value item will strip it
+        // of all keywords in the original yaml tree.
+        json[key] = this.transformBranch(value, locals);
+        if (encrypt) json[key]['.encrypt'] = encrypt;
         if (json[key]['.indexChildrenOn']) {
           if (firstChar === '$') {
             indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
