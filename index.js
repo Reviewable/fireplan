@@ -132,7 +132,10 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
         // Transform *after* extracting all keywords, since processing a .value item will strip it
         // of all keywords in the original yaml tree.
         json[key] = this.transformBranch(value, locals);
-        if (encrypt) json[key]['.encrypt'] = encrypt;
+        if (encrypt) {
+          json[key] = json[key] || {};
+          json[key]['.encrypt'] = encrypt;
+        }
         if (json[key]['.indexChildrenOn']) {
           if (firstChar === '$') {
             indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
