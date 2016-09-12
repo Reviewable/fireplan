@@ -86,8 +86,14 @@ Compiler.prototype.transformBranch = function(yaml, locals) {
         break;
       default:
         var encrypt = {};
-        key = key.replace(/\/encrypted(\[.*?\])?$/, function(match, pattern) {
+        key = key.replace(/\/encrypted(\[.*?\])?(?=\/|$)/, function(match, pattern) {
           encrypt.key = pattern ? pattern.slice(1, -1) : '#';
+          return '';
+        }).replace(/\/few(?=\/|$)/, function() {
+          if (key.charAt(0) !== '$') {
+            throw new Error('/few annotation applies only to $wildcard keys, not to "' + key + '"');
+          }
+          encrypt.few = true;
           return '';
         });
         var firstChar = key.charAt(0);

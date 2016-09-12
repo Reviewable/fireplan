@@ -141,7 +141,13 @@ root:
 
 ### Encryption
 
-Fireplan supports [Firecrypt](https://github.com/pkaminski/firecrypt) encryption annotations.  You can prefix a `.value` rule with the keyword `encrypted` (mixed in any order with `required` and `indexed`), or suffix a key with `/encrypted`, to indicate that that value or key needs to be encrypted.  You can additionally include a pattern after the keyword to indicate which parts of the key or string value should be encrypted, like `encrypted[#-#-.]`, where `#` indicates an encrypted chunk and `.` an unencrypted one.  If any `encrypted` annotations are present, Fireplan will emit a `rules_firecrypt.json` file that you can then feed into Firecrypt.
+Fireplan supports [Firecrypt](https://github.com/pkaminski/firecrypt) encryption annotations.
+
+You can prefix a `.value` rule with the keyword `encrypted` (mixed in any order with `required` and `indexed`), or suffix a key with `/encrypted`, to indicate that that value or key needs to be encrypted.  You can additionally include a pattern after the keyword to indicate which parts of the key or string value should be encrypted, like `encrypted[#-#-.]`, where `#` indicates an encrypted chunk and `.` an unencrypted one.
+
+You can also suffix a `$` wildcard key with `/few` to indicate that you don't expect there to be a lot of children there, and that it's safe to try to load all of them at once.  Judicious application of this annotation can greatly speed up bulk encryption / key rotation operations in Firecrypt.
+
+If any `encrypted` or `few` annotations are present, Fireplan will emit a `rules_firecrypt.json` file that you can then feed into Firecrypt and related tools.
 
 ## That's All!
 

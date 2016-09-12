@@ -1,6 +1,6 @@
 {
   "name": "fireplan",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Compiler for an alternative YAML-based syntax for Firebase security rules.",
   "keywords": [
     "Firebase",
