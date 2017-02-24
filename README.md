@@ -1,6 +1,8 @@
 fireplan
 ========
 
+[![Project Status: Active - The project has reached a stable, usable state and is being actively developed.](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active)
+
 Compiler for an alternative YAML-based syntax for Firebase security rules.  The new syntax is much
 more readable but retains the overall semantics of the traditional JSON format, so there's no
 surprises.
