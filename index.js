@@ -7,7 +7,8 @@ var estraverse = require('estraverse');
 var clone = require('clone');
 
 var BUILTINS = {
-  auth: true, now: true, root: true, next: true, newData: true, prev: true, data: true, env: true
+  auth: true, now: true, root: true, next: true, newData: true, prev: true, data: true, env: true,
+  query: true
 };
 
 exports.transform = function(source) {
