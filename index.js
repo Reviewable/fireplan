@@ -218,7 +218,7 @@ Compiler.prototype.transformAst = function(ast, locals) {
                   node.name === 'env')) {
               throw new Error('Unknown reference: ' + node.name);
             }
-            if (!local && !(parent.type === 'MemberExpression' ||
+            if (!local && !(parent.type === 'MemberExpression' && !parent.computed ||
                   parent.type === 'CallExpression' && parent.callee === node)) {
               this.changed = true;
               return {type: 'CallExpression', callee: node, arguments: []};
