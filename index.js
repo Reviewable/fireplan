@@ -51,7 +51,14 @@ Compiler.prototype.defineFunctions = function() {
         }
       });
       if (name in this.functions) throw new Error('Duplicate function definition: ' + name);
-      this.functions[name] = {name: name, args: args, ast: esprima.parse(body).body[0].expression};
+      try {
+        this.functions[name] = {
+          name: name, args: args, ast: esprima.parse(body).body[0].expression
+        };
+      } catch (e) {
+        e.message += ' in ' + body;
+        throw e;
+      }
     }, this);
   }, this);
   var changed = true;
@@ -181,7 +188,14 @@ Compiler.prototype.expandExpression = function(expression, locals) {
   if (!_.isString(expression)) throw new Error('Expression expected, got: ' + expression);
   try {
     // console.log('expand', expression);
-    var ast = this.transformAst(esprima.parse(expression), locals);
+    var parsed;
+    try {
+      parsed = esprima.parse(expression);
+    } catch (e) {
+      parsed.message += ' in ' + expression;
+      throw e;
+    }
+    var ast = this.transformAst(parsed, locals);
     // console.log(JSON.stringify(ast, null, 2));
     return this.generate(ast);
   } catch (e) {
