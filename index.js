@@ -121,11 +121,11 @@ class Compiler {
               )).length !== keywords.length) {
                 throw new Error('Duplicated child property keywords: ' + key + ' -> ' + match[0]);
               }
-              if (_.contains(keywords, 'required')) {
+              if (_.includes(keywords, 'required')) {
                 if (firstChar === '$') throw new Error('Wildcard children cannot be required');
                 requiredChildren.push(key);
               }
-              if (_.contains(keywords, 'indexed')) {
+              if (_.includes(keywords, 'indexed')) {
                 if (firstChar === '$') {
                   indexedChildren.push('.value');
                 } else {
@@ -222,7 +222,7 @@ class Compiler {
             /* fall through */
             case 'data': node.output = 'snapshot'; break;
             default: {
-              const local = _.contains(locals, node.name);
+              const local = _.includes(locals, node.name);
               if (!(local || node.name in this.functions || node.name === 'oneOf' ||
                     node.name === 'env')) {
                 throw new Error('Unknown reference: ' + node.name);
@@ -289,7 +289,7 @@ class Compiler {
           };
         }
         if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
-          if (_.contains(locals, node.callee.name)) return;
+          if (_.includes(locals, node.callee.name)) return;
           this.changed = true;
           if (node.callee.name === 'oneOf') {
             let condition = {
