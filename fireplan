@@ -3,21 +3,26 @@
 'use strict';
 
 const compiler = require('./index.js');
-const argv = require('yargs').usage('Usage: $0 path/to/rules.yaml').demand(1).argv;
+const argv = require('yargs')
+  .option('o', {alias: 'output', describe: 'output path', type: 'string'})
+  .usage('$0 <input>', 'transform a fireplan rules file into a JSON rules file', yargs => {
+    yargs.positional('input', {
+      describe: 'the fireplan rules input file',
+      type: 'string'
+    });
+  })
+  .strict()
+  .argv;
 const fs = require('fs');
 const yaml = require('js-yaml');
 
-const rawSource = fs.readFileSync(argv._[0], 'utf8');
-const source = yaml.load(rawSource, {filename: argv._[0], schema: yaml.DEFAULT_SAFE_SCHEMA});
+const output = argv.output || argv.input.replace(/\.ya?ml$/, '') + '.json';
+const rawSource = fs.readFileSync(argv.input, 'utf8');
+const source = yaml.load(rawSource, {filename: argv.input, schema: yaml.DEFAULT_SAFE_SCHEMA});
 const rules = compiler.transform(source);
 // console.log(JSON.stringify(rules, null, 2));
-fs.writeFileSync(
-  argv._[0].replace(/\.ya?ml$/, '') + '.json',
-  JSON.stringify({rules: rules.rules}, null, 2)
-);
+fs.writeFileSync(output, JSON.stringify({rules: rules.rules}, null, 2));
 if (rules.firecrypt) {
-  fs.writeFileSync(
-    argv._[0].replace(/\.ya?ml$/, '') + '_firecrypt.json',
-    JSON.stringify({rules: rules.firecrypt}, null, 2)
-  );
+  const cryptOutput = output.replace(/\.json$/, '_firecrypt.json');
+  fs.writeFileSync(cryptOutput, JSON.stringify({rules: rules.firecrypt}, null, 2));
 }
