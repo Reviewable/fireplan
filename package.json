@@ -1,6 +1,6 @@
 {
   "name": "fireplan",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Compiler for an alternative YAML-based syntax for Firebase security rules.",
   "engines": {
     "node": ">=10.0"
@@ -35,15 +35,15 @@
   },
   "homepage": "https://github.com/pkaminski/fireplan",
   "dependencies": {
-    "clone": "^0.2.0",
-    "escodegen": "^1.4.1",
-    "esprima": "^1.2.2",
-    "estraverse": "^1.5.1",
+    "clone": "2",
+    "escodegen": "2",
+    "esprima": "4",
+    "estraverse": "5",
     "js-yaml": "^3.2.2",
     "lodash": "^4.17.16",
     "yargs": "15"
   },
   "devDependencies": {
-    "eslint": "^5.6.1"
+    "eslint": "7"
   }
 }
