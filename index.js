@@ -24,7 +24,7 @@ class Compiler {
 
   transform() {
     this.defineFunctions();
-    const tree = this.transformBranch(this.source.root, []);
+    const tree = this.transformBranch(this.source.root, [], {}, 'root', 0);
     if (tree['.indexChildrenOn']) {
       throw new Error(
         'Indexed attributes must be nested under a wildard key: ' + tree['.indexChildrenOn']);
@@ -42,16 +42,14 @@ class Compiler {
       {'any': 'true'}
     );
     this.functions = {};
-    _.each(this.source.functions, definition => {
-      _.each(definition, (body, signature) => {
+    _.forEach(this.source.functions, definition => {
+      _.forEach(definition, (body, signature) => {
         const match = signature.match(/^\s*(\w+)\s*(?:\((.*?)\))?\s*$/);
         if (!match) throw new Error('Invalid function signature: ' + signature);
         const name = match[1];
         const args = _.compact(_.map((match[2] || '').split(','), arg => arg.trim()));
-        _.each(args, arg => {
-          if (arg in BUILTINS) {
-            throw new Error('Argument name "' + arg + '" shadows builtin variable');
-          }
+        _.forEach(args, arg => {
+          if (arg in BUILTINS) throw new Error(`Argument name "${arg}" shadows builtin variable`);
         });
         if (name in this.functions) throw new Error('Duplicate function definition: ' + name);
         try {
@@ -65,102 +63,130 @@ class Compiler {
     let changed = true;
     while (changed) {
       changed = false;
-      _.each(this.functions, (fn, name) => {  // eslint-disable-line no-loop-func
+      _.forEach(this.functions, (fn, name) => {  // eslint-disable-line no-loop-func
         fn.ast = this.transformAst(fn.ast, fn.args);
         changed = changed || this.changed;
       });
     }
   }
 
-  transformBranch(yaml, locals) {
+  transformBranch(yaml, locals, refs, path, level) {
     const json = {};
     if (_.isString(yaml)) yaml = {'.value': yaml};
     const requiredChildren = [], indexedChildren = [];
     let indexedGrandChildren = [];
+    let localRef;
     let moreAllowed = false, hasWildcard = false;
-    _.each(yaml, (value, key) => {
-      switch (key) {
-        case '.value':
-          value = value.replace(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/, '');
-          if (value.trim() === 'any') moreAllowed = true;
-          /* fall through */
-        case '.read':
-        case '.write':
-        case '.read/write':
-          yaml[key] = this.expandExpression(value, locals);
-          break;
-        case '.more':
-          moreAllowed = value;
-          break;
-        default: {
-          const encrypt = {};
-          key = key.replace(/\/encrypted(\[.*?\])?(?=\/|$)/, (match, pattern) => {
-            encrypt.key = pattern ? pattern.slice(1, -1) : '#';
-            return '';
-          }).replace(/\/few(?=\/|$)/, () => {
-            if (key.charAt(0) !== '$') {
-              throw new Error(`/few annotation applies only to $wildcard keys, not to "${key}"`);
-            }
-            encrypt.few = true;
-            return '';
-          });
-          const firstChar = key.charAt(0);
-          if (firstChar === '.') throw new Error('Unknown control key: ' + key);
-          if (firstChar === '$') {
-            if (hasWildcard) throw new Error('Only one wildcard allowed per object: ' + key);
-            locals = locals.concat([key]);
-            hasWildcard = true;
-          }
-          const constraint = value && (_.isString(value) ? value : value['.value']);
-          if (constraint) {
-            const match = constraint.match(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/);
-            if (match) {
-              const keywords = match[0].split(/\s+/);
-              if (keywords.length > 1 && _.uniq(_.map(keywords, keyword =>
-                keyword.replace(/encrypted\[.*?\]/, 'encrypted')
-              )).length !== keywords.length) {
-                throw new Error('Duplicated child property keywords: ' + key + ' -> ' + match[0]);
+    if (yaml['.ref']) {
+      // Handle .ref first, since YAML children are not ordered.
+      const value = yaml['.ref'];
+      if (value.charAt[0] === '$') throw new Error(`ref name must not start with $: ${value}`);
+      if (value in BUILTINS) throw new Error(`ref shadows builtin variable: ${value}`);
+      if (localRef) throw new Error(`ref already set for this branch: ${value}`);
+      if (refs[value]) throw new Error(`ref already in scope: ${value}`);
+      localRef = value;
+      refs[value] = level;
+      delete yaml['.ref'];
+    }
+    if (yaml['.read/write']) {
+      // Split out, so we can expand with data/newData separately.
+      const value = yaml['.read/write'];
+      yaml['.read'] = yaml['.write'] = value;
+      delete yaml['.read/write'];
+    }
+    _.forEach(yaml, (value, key) => {
+      try {
+        switch (key) {
+          case '.value':
+            value = value.replace(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/, '');
+            if (value.trim() === 'any') moreAllowed = true;
+            /* fall through */
+          case '.write':
+            yaml[key] = this.expandExpression(value, locals, refs, level, true);
+            break;
+          case '.read':
+            yaml[key] = this.expandExpression(value, locals, refs, level, false);
+            break;
+          case '.more':
+            moreAllowed = value;
+            break;
+          default: {
+            const encrypt = {};
+            key = key.replace(/\/encrypted(\[.*?\])?(?=\/|$)/, (match, pattern) => {
+              encrypt.key = pattern ? pattern.slice(1, -1) : '#';
+              return '';
+            }).replace(/\/few(?=\/|$)/, () => {
+              if (key.charAt(0) !== '$') {
+                throw new Error(`/few annotation applies only to $wildcard keys, not to "${key}"`);
               }
-              if (_.includes(keywords, 'required')) {
-                if (firstChar === '$') throw new Error('Wildcard children cannot be required');
-                requiredChildren.push(key);
-              }
-              if (_.includes(keywords, 'indexed')) {
-                if (firstChar === '$') {
-                  indexedChildren.push('.value');
-                } else {
-                  indexedGrandChildren.push(key);
-                }
-              }
-              _.each(keywords, keyword => {
-                const match2 = keyword.match(/^encrypted(\[.*?\])?$/);
-                if (!match2) return;
-                let pattern = match2[1];
-                if (pattern) pattern = pattern.slice(1, -1);
-                encrypt.value = pattern || '#';
-              });
-            }
-          }
-          // Transform *after* extracting all keywords, since processing a .value item will strip it
-          // of all keywords in the original yaml tree.
-          json[key] = this.transformBranch(value, locals);
-          if (!_.isEmpty(encrypt)) json[key]['.encrypt'] = encrypt;
-          if (json[key]['.indexChildrenOn']) {
+              encrypt.few = true;
+              return '';
+            });
+            const firstChar = key.charAt(0);
+            if (firstChar === '.') throw new Error('Unknown control key: ' + key);
             if (firstChar === '$') {
-              indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
-            } else {
-              indexedGrandChildren = indexedGrandChildren.concat(
-                _.map(json[key]['.indexChildrenOn'], indexKey => key + '/' + indexKey)
-              );
+              if (hasWildcard) throw new Error('Only one wildcard allowed per object: ' + key);
+              locals = locals.concat([key]);
+              hasWildcard = true;
             }
-            delete json[key]['.indexChildrenOn'];
+            const constraint = value && (_.isString(value) ? value : value['.value']);
+            if (constraint) {
+              const match = constraint.match(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/);
+              if (match) {
+                const keywords = match[0].split(/\s+/);
+                if (keywords.length > 1 && _.uniq(_.map(keywords, keyword =>
+                  keyword.replace(/encrypted\[.*?\]/, 'encrypted')
+                )).length !== keywords.length) {
+                  throw new Error(`Duplicated child property keywords: '${key} -> ${match[0]}`);
+                }
+                if (_.includes(keywords, 'required')) {
+                  if (firstChar === '$') throw new Error('Wildcard children cannot be required');
+                  requiredChildren.push(key);
+                }
+                if (_.includes(keywords, 'indexed')) {
+                  if (firstChar === '$') {
+                    indexedChildren.push('.value');
+                  } else {
+                    indexedGrandChildren.push(key);
+                  }
+                }
+                _.forEach(keywords, keyword => {
+                  const match2 = keyword.match(/^encrypted(\[.*?\])?$/);
+                  if (!match2) return;
+                  let pattern = match2[1];
+                  if (pattern) pattern = pattern.slice(1, -1);
+                  encrypt.value = pattern || '#';
+                });
+              }
+            }
+            // Transform *after* extracting all keywords, since processing a .value item will strip it
+            // of all keywords in the original yaml tree.
+            const childPath = firstChar === '$' ? `${path}[${key}]` : `${path}.${key}`;
+            json[key] = this.transformBranch(value, locals, refs, childPath, level + 1);
+            if (!_.isEmpty(encrypt)) json[key]['.encrypt'] = encrypt;
+            if (json[key]['.indexChildrenOn']) {
+              if (firstChar === '$') {
+                indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
+              } else {
+                indexedGrandChildren = indexedGrandChildren.concat(
+                  _.map(json[key]['.indexChildrenOn'], indexKey => key + '/' + indexKey)
+                );
+              }
+              delete json[key]['.indexChildrenOn'];
+            }
           }
         }
+      } catch (e) {
+        if (!e.located) {
+          e.message += ` (at ${path})`;
+          e.located = true;
+        }
+        throw e;
       }
     });
     if (yaml['.read/write']) {
       if (yaml['.read'] || yaml['.write']) {
-        throw new Error('Cannot specify both .read/write and .read or .write');
+        throw new Error(`Cannot specify both .read/write and .read or .write (at ${path})`);
       }
       json['.read'] = json['.write'] = yaml['.read/write'];
     } else {
@@ -180,10 +206,11 @@ class Compiler {
     if (indexedGrandChildren.length) json['.indexChildrenOn'] = indexedGrandChildren;
     if (validation) json['.validate'] = validation;
     if (!moreAllowed && !hasWildcard) json.$other = {'.validate': false};
+    if (localRef) delete refs[localRef];
     return json;
   }
 
-  expandExpression(expression, locals) {
+  expandExpression(expression, locals, refs, level, newData) {
     if (_.isBoolean(expression)) expression = '' + expression;
     if (!_.isString(expression)) throw new Error('Expression expected, got: ' + expression);
     try {
@@ -195,7 +222,7 @@ class Compiler {
         parsed.message += ' in ' + expression;
         throw e;
       }
-      const ast = this.transformAst(parsed, locals);
+      const ast = this.transformAst(parsed, locals, refs, level, newData);
       // console.log(JSON.stringify(ast, null, 2));
       return this.generate(ast);
     } catch (e) {
@@ -204,34 +231,47 @@ class Compiler {
     }
   }
 
-  transformAst(ast, locals) {
+  transformAst(ast, locals, refs, level, newData) {
     this.changed = false;
     return estraverse.replace(ast, {
       enter: (node, parent) => {
         if (!node) return;
         if (node.type === 'Identifier' && !(
-          parent.type === 'MemberExpression' && !parent.computed && parent.property === node
+          parent.type === 'MemberExpression' && !parent.computed && parent.property === node ||
+          parent.type === 'CallExpression' && parent.callee === node
         )) {
           switch (node.name) {
-            case 'auth': case 'now': return;
-            case 'root': node.output = 'snapshot'; break;
-            case 'next': node.name = 'newData';
-            /* fall through */
-            case 'newData': node.output = 'snapshot'; break;
-            case 'prev': node.name = 'data';
-            /* fall through */
-            case 'data': node.output = 'snapshot'; break;
+            case 'auth': case 'now':
+              return;
+            case 'root':
+              node.output = 'snapshot'; break;
+            case 'next': case 'newData':
+              node.name = 'newData'; node.output = 'snapshot'; break;
+            case 'prev': case 'data':
+              node.name = 'data'; node.output = 'snapshot'; break;
             default: {
-              const local = _.includes(locals, node.name);
-              if (!(local || node.name in this.functions || node.name === 'oneOf' ||
-                    node.name === 'env')) {
-                throw new Error('Unknown reference: ' + node.name);
+              if (node.name === 'oneOf' || node.name === 'env') return;
+              if (_.includes(locals, node.name)) return;
+              const ref = refs && refs[node.name];
+              if (ref) {
+                this.changed = true;
+                let refNode = {
+                  type: 'Identifier', name: newData ? 'newData' : 'data', output: 'snapshot'
+                };
+                _.times(level - ref, () => {
+                  refNode = {type: 'CallExpression', arguments: [], output: 'snapshot', callee: {
+                    type: 'MemberExpression', computed: false, object: refNode, property: {
+                      type: 'Identifier', name: 'parent'
+                    }
+                  }}
+                });
+                return refNode;
               }
-              if (!local && !(parent.type === 'MemberExpression' && !parent.computed ||
-                    parent.type === 'CallExpression' && parent.callee === node)) {
+              if (node.name in this.functions) {
                 this.changed = true;
                 return {type: 'CallExpression', callee: node, arguments: []};
               }
+              throw new Error('Unknown reference: ' + node.name);
             }
           }
         }
@@ -295,7 +335,7 @@ class Compiler {
             let condition = {
               type: 'BinaryExpression', operator: '==', left: NEW_DATA_VAL, right: node.arguments[0]
             };
-            _.each(node.arguments.slice(1), arg => {
+            _.forEach(node.arguments.slice(1), arg => {
               condition = {type: 'LogicalExpression', operator: '||', left: condition, right: {
                 type: 'BinaryExpression', operator: '==', left: NEW_DATA_VAL, right: arg
               }};
@@ -310,7 +350,7 @@ class Compiler {
                 `${this.generate(node)} vs ${node.callee.name}(${fn.args.join(', ')})`);
             }
             const bindings = {};
-            _.each(_.zip(fn.args, node.arguments), pair => {
+            _.forEach(_.zip(fn.args, node.arguments), pair => {
               bindings[pair[0]] = pair[1];
             });
             node = estraverse.replace(clone(fn.ast, false), {
@@ -338,7 +378,7 @@ class Compiler {
   extractEncryptDirectives(tree) {
     if (!_.isObject(tree)) return;
     const encryptTree = {};
-    _.each(tree, (value, key) => {
+    _.forEach(tree, (value, key) => {
       if (key !== '.encrypt') value = this.extractEncryptDirectives(tree[key]);
       if (value) encryptTree[key] = value;
     });

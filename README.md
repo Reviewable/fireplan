@@ -32,9 +32,11 @@ root:
   users:
     $uid:
       .read/write: auth.uid == $uid
+      .ref: user
       role: required oneOf('visitor', 'user', 'admin')
       permissions:
         $subject:
+          .write: user.role == 'user' || user.role == 'admin'
           write: required boolean
 ```
 
@@ -57,6 +59,7 @@ Security expressions are used in `.read`, `.write` and `.value` rules, as well a
 - You can use _next_ and _prev_ instead of _newData_ and _data_ (but those still work as well).
 - You can use JavaScript-like syntax for accessing children, so that `data.child('foo').child($bar)` becomes `data.foo[$bar]`.
 - You can leave off the `.val()` calls altogether, as they'll be inferred automatically (unless you're calling a `String` method like `length` or `contains()`, then you must keep the `.val()`).
+- You can capture named references to parent nodes with `.ref: <name>`, then use these references in your expression.  They'll be automatically transformed to `newData.parent().parent()...` so you can easily reference other parts of the new object in your rules.  (In `.read` expressions `data` will be used instead.)
 
 Putting all these together, an expression like:
 ```newData.child('counter').val() == data.child('counter').val() + 1```
