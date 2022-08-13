@@ -17,7 +17,7 @@
     "fireplan": "fireplan"
   },
   "scripts": {
-    "update": "yarn upgrade-interactive --latest && cd diff_worker && yarn upgrade-interactive --latest && cd ../truss_worker && yarn upgrade-interactive --latest && cd .."
+    "update": "yarn upgrade-interactive --latest"
   },
   "repository": {
     "type": "git",
