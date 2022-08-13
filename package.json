@@ -1,6 +1,6 @@
 {
   "name": "fireplan",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Compiler for an alternative YAML-based syntax for Firebase security rules.",
   "engines": {
     "node": ">=10.0"
@@ -15,6 +15,9 @@
   "main": "index.js",
   "bin": {
     "fireplan": "fireplan"
+  },
+  "scripts": {
+    "update": "yarn upgrade-interactive --latest && cd diff_worker && yarn upgrade-interactive --latest && cd ../truss_worker && yarn upgrade-interactive --latest && cd .."
   },
   "repository": {
     "type": "git",
