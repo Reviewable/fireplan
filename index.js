@@ -159,8 +159,8 @@ class Compiler {
                 });
               }
             }
-            // Transform *after* extracting all keywords, since processing a .value item will strip it
-            // of all keywords in the original yaml tree.
+            // Transform *after* extracting all keywords, since processing a .value item will strip
+            // it of all keywords in the original yaml tree.
             const childPath = firstChar === '$' ? `${path}[${key}]` : `${path}.${key}`;
             json[key] = this.transformBranch(value, locals, refs, childPath, level + 1);
             if (!_.isEmpty(encrypt)) json[key]['.encrypt'] = encrypt;
@@ -263,7 +263,7 @@ class Compiler {
                     type: 'MemberExpression', computed: false, object: refNode, property: {
                       type: 'Identifier', name: 'parent'
                     }
-                  }}
+                  }};
                 });
                 return refNode;
               }
