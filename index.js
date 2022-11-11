@@ -80,7 +80,7 @@ class Compiler {
     let indexedGrandChildren = [];
     let localRef;
     let moreAllowed = false, hasWildcard = false;
-    if (yaml['.ref']) {
+    if ('.ref' in yaml) {
       // Handle .ref first, since YAML children are not ordered.
       const value = yaml['.ref'];
       if (value.charAt[0] === '$') throw new Error(`ref name must not start with $: ${value}`);
@@ -91,7 +91,7 @@ class Compiler {
       refs[value] = level;
       delete yaml['.ref'];
     }
-    if (yaml['.read/write']) {
+    if ('.read/write' in yaml) {
       // Split out, so we can expand with data/newData separately.
       const value = yaml['.read/write'];
       yaml['.read'] = yaml['.write'] = value;
@@ -187,17 +187,17 @@ class Compiler {
         throw e;
       }
     });
-    if (yaml['.read/write']) {
-      if (yaml['.read'] || yaml['.write']) {
+    if ('.read/write' in yaml) {
+      if ('.read' in yaml || '.write' in yaml) {
         throw new Error(`Cannot specify both .read/write and .read or .write (at ${path})`);
       }
       json['.read'] = json['.write'] = yaml['.read/write'];
     } else {
-      if (yaml['.read']) json['.read'] = yaml['.read'];
-      if (yaml['.write']) json['.write'] = yaml['.write'];
+      if ('.read' in yaml) json['.read'] = yaml['.read'];
+      if ('.write' in yaml) json['.write'] = yaml['.write'];
     }
     let validation = '';
-    if (yaml['.value']) validation = yaml['.value'];
+    if ('.value' in yaml) validation = yaml['.value'];
     if (requiredChildren.length) {
       if (validation) validation = '(' + validation + ') && ';
       validation +=
