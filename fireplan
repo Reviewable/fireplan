@@ -13,18 +13,5 @@ const argv = require('yargs')
   })
   .strict()
   .argv;
-const fs = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
 
-const output = argv.output || argv.input.replace(/\.ya?ml$/, '') + '.json';
-const rawSource = fs.readFileSync(argv.input, 'utf8');
-const source = yaml.load(rawSource, {filename: argv.input, schema: yaml.DEFAULT_SAFE_SCHEMA});
-const rules = compiler.transform(source);
-// console.log(JSON.stringify(rules, null, 2));
-fs.mkdirSync(path.dirname(output), {recursive: true});
-fs.writeFileSync(output, JSON.stringify({rules: rules.rules}, null, 2));
-if (rules.firecrypt) {
-  const cryptOutput = output.replace(/\.json$/, '_firecrypt.json');
-  fs.writeFileSync(cryptOutput, JSON.stringify({rules: rules.firecrypt}, null, 2));
-}
+compiler.transformFile(argv.input, argv.output);

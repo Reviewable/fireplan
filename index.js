@@ -5,6 +5,9 @@ const esprima = require('esprima');
 const escodegen = require('escodegen');
 const estraverse = require('estraverse');
 const clone = require('clone');
+const fs = require('fs');
+const {dirname} = require('path');
+const jsyaml = require('js-yaml');
 
 const BUILTINS = {
   auth: true, now: true, root: true, next: true, newData: true, prev: true, data: true, env: true,
@@ -390,4 +393,18 @@ class Compiler {
 
 exports.transform = function(source) {
   return new Compiler(source).transform();
+};
+
+exports.transformFile = function(input, output) {
+  if (!output) output = input.replace(/\.ya?ml$/, '') + '.json';
+  const rawSource = fs.readFileSync(input, 'utf8');
+  const source = jsyaml.load(rawSource, {filename: input, schema: jsyaml.DEFAULT_SAFE_SCHEMA});
+  const rules = exports.transform(source);
+  // console.log(JSON.stringify(rules, null, 2));
+  fs.mkdirSync(dirname(output), {recursive: true});
+  fs.writeFileSync(output, JSON.stringify({rules: rules.rules}, null, 2));
+  if (rules.firecrypt) {
+    const cryptOutput = output.replace(/\.json$/, '_firecrypt.json');
+    fs.writeFileSync(cryptOutput, JSON.stringify({rules: rules.firecrypt}, null, 2));
+  }
 };
