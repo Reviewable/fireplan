@@ -256,7 +256,7 @@ class Compiler {
               if (node.name === 'oneOf' || node.name === 'env') return;
               if (_.includes(locals, node.name)) return;
               const ref = refs && refs[node.name];
-              if (ref) {
+              if (_.isNumber(ref)) {
                 this.changed = true;
                 let refNode = {
                   type: 'Identifier', name: newData ? 'newData' : 'data', output: 'snapshot'
