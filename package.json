@@ -3,7 +3,7 @@
   "version": "3.1.3",
   "description": "Compiler for an alternative YAML-based syntax for Firebase security rules.",
   "engines": {
-    "node": ">=12.0"
+    "node": ">=14.0"
   },
   "keywords": [
     "Firebase",
@@ -47,6 +47,7 @@
     "yargs": "17.5.1"
   },
   "devDependencies": {
-    "eslint": "8.21.0"
+    "eslint": "^8.57.0",
+    "reviewable-configs": "Reviewable/reviewable-configs"
   }
 }
