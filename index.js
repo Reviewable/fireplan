@@ -50,7 +50,7 @@ class Compiler {
         const match = signature.match(/^\s*(\w+)\s*(?:\((.*?)\))?\s*$/);
         if (!match) throw new Error('Invalid function signature: ' + signature);
         const name = match[1];
-        const args = _.compact(_.map((match[2] || '').split(','), arg => arg.trim()));
+        const args = _.compact(_.map((match[2] || '').split(','), _.trim));
         _.forEach(args, arg => {
           if (arg in BUILTINS) throw new Error(`Argument name "${arg}" shadows builtin variable`);
         });
@@ -102,7 +102,7 @@ class Compiler {
         switch (key) {
           case '.value':
             value = value.replace(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/, '');
-            if (value.trim() === 'any') moreAllowed = true;
+            if (_.trim(value) === 'any') moreAllowed = true;
             /* fall through */
           case '.write':
             yaml[key] = this.expandExpression(value, locals, refs, level, true);
