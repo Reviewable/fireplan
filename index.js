@@ -244,7 +244,7 @@ class Compiler {
           parent.type === 'CallExpression' && parent.callee === node
         )) {
           switch (node.name) {
-            case 'auth': case 'now':
+            case 'auth': case 'now': case 'query':
               return;
             case 'root':
               node.output = 'snapshot'; break;
