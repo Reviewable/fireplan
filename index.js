@@ -32,8 +32,8 @@ class Compiler {
       throw new Error(
         'Indexed attributes must be nested under a wildard key: ' + tree['.indexChildrenOn']);
     }
-    const encryptTree = this.extractEncryptDirectives(tree);
-    return {rules: tree, firecrypt: encryptTree};
+    const encodeTree = this.extractEncodeDirectives(tree);
+    return {rules: tree, fireshim: encodeTree};
   }
 
   defineFunctions() {
@@ -101,7 +101,8 @@ class Compiler {
       try {
         switch (key) {
           case '.value':
-            value = value.replace(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/, '');
+            value =
+              value.replace(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))|compressed*/, '');
             if (_.trim(value) === 'any') moreAllowed = true;
             /* fall through */
           case '.write':
@@ -114,15 +115,20 @@ class Compiler {
             moreAllowed = value;
             break;
           default: {
-            const encrypt = {};
+            const encode = {};
             key = key.replace(/\/encrypted(\[.*?\])?(?=\/|$)/, (match, pattern) => {
-              encrypt.key = pattern ? pattern.slice(1, -1) : '#';
+              encode.encrypted ??= {};
+              encode.encrypted.key = pattern ? pattern.slice(1, -1) : '#';
+              return '';
+            }).replace(/\/compressed(?=\/|$)/, () => {
+              encode.compressed ??= {};
+              encode.compressed.key = true;
               return '';
             }).replace(/\/few(?=\/|$)/, () => {
               if (key.charAt(0) !== '$') {
                 throw new Error(`/few annotation applies only to $wildcard keys, not to "${key}"`);
               }
-              encrypt.few = true;
+              encode.few = true;
               return '';
             });
             const firstChar = key.charAt(0);
@@ -134,7 +140,8 @@ class Compiler {
             }
             const constraint = value && (_.isString(value) ? value : value['.value']);
             if (constraint) {
-              const match = constraint.match(/^\s*((required|indexed|encrypted(\[.*?\])?)(\s+|$))*/);
+              const match =
+                constraint.match(/^\s*((required|indexed|encrypted(\[.*?\])?|compressed)(\s+|$))*/);
               if (match) {
                 const keywords = match[0].split(/\s+/);
                 if (keywords.length > 1 && _.uniq(_.map(keywords, keyword =>
@@ -158,7 +165,13 @@ class Compiler {
                   if (!match2) return;
                   let pattern = match2[1];
                   if (pattern) pattern = pattern.slice(1, -1);
-                  encrypt.value = pattern || '#';
+                  encode.encrypted ??= {};
+                  encode.encrypted.value = pattern || '#';
+                });
+                _.forEach(keywords, keyword => {
+                  if (keyword !== 'compressed') return;
+                  encode.compressed ??= {};
+                  encode.compressed.value = true;
                 });
               }
             }
@@ -166,7 +179,7 @@ class Compiler {
             // it of all keywords in the original yaml tree.
             const childPath = firstChar === '$' ? `${path}[${key}]` : `${path}.${key}`;
             json[key] = this.transformBranch(value, locals, refs, childPath, level + 1);
-            if (!_.isEmpty(encrypt)) json[key]['.encrypt'] = encrypt;
+            if (!_.isEmpty(encode)) json[key]['.encode'] = encode;
             if (json[key]['.indexChildrenOn']) {
               if (firstChar === '$') {
                 indexedChildren.push.apply(indexedChildren, json[key]['.indexChildrenOn']);
@@ -378,15 +391,15 @@ class Compiler {
     return escodegen.generate(ast, {format: {semicolons: false, newline: ' '}});
   }
 
-  extractEncryptDirectives(tree) {
+  extractEncodeDirectives(tree) {
     if (!_.isObject(tree)) return;
-    const encryptTree = {};
+    const encodeTree = {};
     _.forEach(tree, (value, key) => {
-      if (key !== '.encrypt') value = this.extractEncryptDirectives(tree[key]);
-      if (value) encryptTree[key] = value;
+      if (key !== '.encode') value = this.extractEncodeDirectives(tree[key]);
+      if (value) encodeTree[key] = value;
     });
-    delete tree['.encrypt'];
-    if (!_.isEmpty(encryptTree)) return encryptTree;
+    delete tree['.encode'];
+    if (!_.isEmpty(encodeTree)) return encodeTree;
   }
 }
 
@@ -403,8 +416,8 @@ exports.transformFile = function(input, output) {
   // console.log(JSON.stringify(rules, null, 2));
   fs.mkdirSync(dirname(output), {recursive: true});
   fs.writeFileSync(output, JSON.stringify({rules: rules.rules}, null, 2));
-  if (rules.firecrypt) {
-    const cryptOutput = output.replace(/\.json$/, '_firecrypt.json');
-    fs.writeFileSync(cryptOutput, JSON.stringify({rules: rules.firecrypt}, null, 2));
+  if (rules.fireshim) {
+    const shimOutput = output.replace(/\.json$/, '_fireshim.json');
+    fs.writeFileSync(shimOutput, JSON.stringify({rules: rules.fireshim}, null, 2));
   }
 };

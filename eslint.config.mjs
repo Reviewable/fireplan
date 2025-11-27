@@ -10,9 +10,9 @@ export default [
     languageOptions: {
       globals: {
         ...globals.node,
-        ...globals.es2018,
+        ...globals.es2021,
       },
-      ecmaVersion: 2018,
+      ecmaVersion: 2024,
       sourceType: 'commonjs'
     }
   },
