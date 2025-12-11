@@ -1,6 +1,6 @@
 {
   "name": "fireplan",
-  "version": "3.1.4",
+  "version": "3.1.5",
   "description": "Compiler for an alternative YAML-based syntax for Firebase security rules.",
   "engines": {
     "node": ">=14.0"
@@ -18,26 +18,24 @@
     "fireplan": "fireplan"
   },
   "scripts": {
+    "lint": "eslint *.js fireplan",
     "update": "yarn upgrade-interactive --latest"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/pkaminski/fireplan.git"
-  },
+  "repository": "https://github.com/Reviewable/fireplan",
   "author": {
     "name": "Piotr Kaminski",
-    "email": "piotr@ideanest.com"
+    "email": "piotr@reviewable.io"
   },
   "licenses": [
     {
       "type": "MIT",
-      "url": "https://github.com/pkaminski/fireplan/blob/master/LICENSE"
+      "url": "https://github.com/Reviewable/fireplan/blob/master/LICENSE"
     }
   ],
   "bugs": {
-    "url": "https://github.com/pkaminski/fireplan/issues"
+    "url": "https://github.com/Reviewable/fireplan/issues"
   },
-  "homepage": "https://github.com/pkaminski/fireplan",
+  "homepage": "https://github.com/Reviewable/fireplan",
   "dependencies": {
     "clone": "2",
     "escodegen": "2",
@@ -48,7 +46,7 @@
     "yargs": "17.5.1"
   },
   "devDependencies": {
-    "eslint": "^8.57.0",
+    "eslint": "9.x",
     "reviewable-configs": "Reviewable/reviewable-configs"
   }
 }
