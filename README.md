@@ -46,6 +46,13 @@ Then compile it into `rules.json` like so:
 fireplan rules.yaml
 ```
 
+You can also optionally generate TypeScript definitions (for NodeJS/Firebase consumers) from the
+same schema:
+
+```
+fireplan rules.yaml --types-output rules.d.ts
+```
+
 ## Syntax
 
 Fireplan security rules are written in YAML, which gets translated to JSON by the compiler.  Indentation indicates the hierarchical structure and there's no need for quotes, but otherwise it's
@@ -107,6 +114,20 @@ functions:
 A function can take any number of arguments; if it doesn't take any, you can leave out the empty parentheses.  Function names must be unique (there's no dispatch on the number of arguments).  A function's body is an expression just like that of any security rule, and can access the function's arguments as well as the usual security rules globals (`auth`, `next`, etc.).
 
 Functions are called in the usual way, like `foo('bar', next.baz)`.  A function can call other functions in its body but recursion is forbidden (and will crash the compiler).  If a function doesn't take arguments you can also call it without parentheses, like `foo2`.  This is especially convenient for defining new "value types", like `percentage` in the example at the top.
+
+
+### TypeScript Definition Generation
+
+When `--types-output` is provided, Fireplan emits a `.d.ts` file with a single top-level
+`FirebaseData` type and nested anonymous object types mapped from Firebase paths.  The generated
+types cover:
+- primitive value constraints (`string`, `number`, `boolean`),
+- required vs optional children (`required` keyword),
+- `oneOf(...)` constraints as TypeScript unions,
+- wildcard keys mapped to a literal `$` child property,
+- object branches with `.more: true` are open and accept `[key: string]: any`.
+
+Rules that use expressions beyond these features are emitted as `unknown` in TypeScript.
 
 ### Types
 

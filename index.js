@@ -8,6 +8,7 @@ const clone = require('clone');
 const fs = require('fs');
 const {dirname} = require('path');
 const jsyaml = require('js-yaml');
+const {generateTypes} = require('./type_generator');
 
 const BUILTINS = {
   auth: true, now: true, root: true, next: true, newData: true, prev: true, data: true, env: true,
@@ -395,10 +396,13 @@ exports.transform = function(source) {
   return new Compiler(source).transform();
 };
 
-exports.transformFile = function(input, output) {
+exports.generateTypes = generateTypes;
+
+exports.transformFile = function(input, output, typesOutput) {
   if (!output) output = input.replace(/\.ya?ml$/, '') + '.json';
   const rawSource = fs.readFileSync(input, 'utf8');
   const source = jsyaml.load(rawSource, {filename: input, schema: jsyaml.DEFAULT_SAFE_SCHEMA});
+  const sourceForTypes = typesOutput ? clone(source, false) : null;
   const rules = exports.transform(source);
   // console.log(JSON.stringify(rules, null, 2));
   fs.mkdirSync(dirname(output), {recursive: true});
@@ -406,5 +410,9 @@ exports.transformFile = function(input, output) {
   if (rules.firecrypt) {
     const cryptOutput = output.replace(/\.json$/, '_firecrypt.json');
     fs.writeFileSync(cryptOutput, JSON.stringify({rules: rules.firecrypt}, null, 2));
+  }
+  if (typesOutput) {
+    fs.mkdirSync(dirname(typesOutput), {recursive: true});
+    fs.writeFileSync(typesOutput, generateTypes(sourceForTypes));
   }
 };
