@@ -46,6 +46,13 @@ Then compile it into `rules.json` like so:
 fireplan rules.yaml
 ```
 
+You can also optionally generate TypeScript definitions (for NodeJS/Firebase consumers) from the
+same schema:
+
+```
+fireplan rules.yaml --types-output rules.d.ts
+```
+
 ## Syntax
 
 Fireplan security rules are written in YAML, which gets translated to JSON by the compiler.  Indentation indicates the hierarchical structure and there's no need for quotes, but otherwise it's
@@ -108,9 +115,10 @@ A function can take any number of arguments; if it doesn't take any, you can lea
 
 Functions are called in the usual way, like `foo('bar', next.baz)`.  A function can call other functions in its body but recursion is forbidden (and will crash the compiler).  If a function doesn't take arguments you can also call it without parentheses, like `foo2`.  This is especially convenient for defining new "value types", like `percentage` in the example at the top.
 
+
 ### Types
 
-Fireplan predefines three value types `string`, `boolean` and `number` like so:
+Fireplan predefines four value types `string`, `boolean`, `number`, and `any` like so:
 ```yaml
 functions:
   - string: next.isString()
@@ -119,10 +127,13 @@ functions:
   - any: true  # also implies .more: true for this child
 ```
 
-There's also a special predefined function `oneOf` that is used to constrain a property to one of a list of values (typically strings).  Use it like this (and prefix with `required` to taste):
+There are also special predefined functions `oneOf` and `is` that are used to constrain a
+property to a fixed set of values (typically strings).  `oneOf` accepts multiple values, while
+`is` accepts exactly one.  Use them like this (and prefix with `required` to taste):
 ```yaml
 root:
   foo: oneOf('bar', 'baz', 'qux')
+  bar: is('quux')
 ```
 
 Finally, for object types, you can apply YAML's referencing mechanism to reuse a definition in multiple places:
@@ -153,6 +164,25 @@ You can prefix a `.value` rule with the keyword `encrypted` (mixed in any order 
 You can also suffix a `$` wildcard key with `/few` to indicate that you don't expect there to be a lot of children there, and that it's safe to try to load all of them at once.  Judicious application of this annotation can greatly speed up bulk encryption / key rotation operations in Firecrypt.
 
 If any `encrypted` or `few` annotations are present, Fireplan will emit a `rules_firecrypt.json` file that you can then feed into Firecrypt and related tools.
+
+### TypeScript Definition Generation
+
+When `--types-output` is provided, Fireplan emits a `.d.ts` file with a single top-level
+`FirebaseData` type and nested anonymous object types mapped from Firebase paths.  The generated
+types cover:
+- primitive value constraints (`string`, `number`, `boolean`, `any`),
+- required vs optional children (`required` keyword),
+- `oneOf(...)` and `is(...)` constraints as TypeScript literal unions,
+- wildcard keys mapped to TypeScript index signatures (for example `[userKey: string]: {...}`),
+- object branches with `.more: true` are open and accept `[key: string]: any`.
+
+TypeScript limitation: there is no clean way to express "all string keys except these named
+properties".  For objects that mix named children with a wildcard child, Fireplan omits the named
+children from generated types and emits only the wildcard index signature.  If `.more: true` is
+present on that same object, named children are kept and the wildcard index signature is widened to
+`[key: string]: any`.
+
+Rules that use expressions beyond these features are emitted as `unknown` in TypeScript.
 
 ## That's All!
 
