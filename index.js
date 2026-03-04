@@ -8,6 +8,7 @@ const clone = require('clone');
 const fs = require('fs');
 const {dirname} = require('path');
 const jsyaml = require('js-yaml');
+const {generateTypes} = require('./type_generator');
 
 const BUILTINS = {
   auth: true, now: true, root: true, next: true, newData: true, prev: true, data: true, env: true,
@@ -253,7 +254,7 @@ class Compiler {
             case 'prev': case 'data':
               node.name = 'data'; node.output = 'snapshot'; break;
             default: {
-              if (node.name === 'oneOf' || node.name === 'env') return;
+              if (node.name === 'oneOf' || node.name === 'is' || node.name === 'env') return;
               if (_.includes(locals, node.name)) return;
               const ref = refs && refs[node.name];
               if (_.isNumber(ref)) {
@@ -334,7 +335,14 @@ class Compiler {
         if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
           if (_.includes(locals, node.callee.name)) return;
           this.changed = true;
-          if (node.callee.name === 'oneOf') {
+          if (node.callee.name === 'oneOf' || node.callee.name === 'is') {
+            if (!node.arguments.length) {
+              throw new Error(`${node.callee.name}() expects at least one argument: ` +
+                this.generate(node));
+            }
+            if (node.callee.name === 'is' && node.arguments.length !== 1) {
+              throw new Error('is() expects exactly one argument: ' + this.generate(node));
+            }
             let condition = {
               type: 'BinaryExpression', operator: '==', left: NEW_DATA_VAL, right: node.arguments[0]
             };
@@ -395,10 +403,13 @@ exports.transform = function(source) {
   return new Compiler(source).transform();
 };
 
-exports.transformFile = function(input, output) {
+exports.generateTypes = generateTypes;
+
+exports.transformFile = function(input, output, typesOutput) {
   if (!output) output = input.replace(/\.ya?ml$/, '') + '.json';
   const rawSource = fs.readFileSync(input, 'utf8');
   const source = jsyaml.load(rawSource, {filename: input, schema: jsyaml.DEFAULT_SAFE_SCHEMA});
+  const sourceForTypes = typesOutput ? clone(source) : null;
   const rules = exports.transform(source);
   // console.log(JSON.stringify(rules, null, 2));
   fs.mkdirSync(dirname(output), {recursive: true});
@@ -406,5 +417,9 @@ exports.transformFile = function(input, output) {
   if (rules.firecrypt) {
     const cryptOutput = output.replace(/\.json$/, '_firecrypt.json');
     fs.writeFileSync(cryptOutput, JSON.stringify({rules: rules.firecrypt}, null, 2));
+  }
+  if (typesOutput) {
+    fs.mkdirSync(dirname(typesOutput), {recursive: true});
+    fs.writeFileSync(typesOutput, generateTypes(sourceForTypes));
   }
 };
