@@ -5,6 +5,11 @@
 const compiler = require('./index.js');
 const argv = require('yargs')
   .option('o', {alias: 'output', describe: 'output path', type: 'string'})
+  .option('t', {
+    alias: 'types-output',
+    describe: 'optional path for generated TypeScript definitions',
+    type: 'string'
+  })
   .usage('$0 <input>', 'transform a fireplan rules file into a JSON rules file', yargs => {
     yargs.positional('input', {
       describe: 'the fireplan rules input file',
@@ -14,4 +19,4 @@ const argv = require('yargs')
   .strict()
   .argv;
 
-compiler.transformFile(argv.input, argv.output);
+compiler.transformFile(argv.input, argv.output, argv.typesOutput);
