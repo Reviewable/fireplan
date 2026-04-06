@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=14.0"
   },
-  "packageManager": "yarn@1.22.22",
+  "packageManager": "yarn@4.13.0",
   "keywords": [
     "Firebase",
     "command",
@@ -14,12 +14,12 @@
     "rules"
   ],
   "main": "index.js",
-  "bin": {
-    "fireplan": "fireplan"
-  },
+  "bin": "fireplan",
   "scripts": {
     "lint": "eslint *.js fireplan",
-    "update": "yarn upgrade-interactive --latest"
+    "update": "yarn up -R '*' && yarn dedupe --strategy highest",
+    "latest": "yarn npm-check-updates -i -m --packageManager yarn --install never && yarn install",
+    "upgrade": "reviewable-upgrade"
   },
   "repository": "https://github.com/Reviewable/fireplan",
   "author": {
@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "eslint": "9.x",
+    "npm-check-updates": "^20.0.0",
     "reviewable-configs": "Reviewable/reviewable-configs"
   }
 }
