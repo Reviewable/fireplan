@@ -408,7 +408,7 @@ exports.generateTypes = generateTypes;
 exports.transformFile = function(input, output, typesOutput) {
   if (!output) output = input.replace(/\.ya?ml$/, '') + '.json';
   const rawSource = fs.readFileSync(input, 'utf8');
-  const source = jsyaml.load(rawSource, {filename: input, schema: jsyaml.DEFAULT_SAFE_SCHEMA});
+  const source = jsyaml.load(rawSource, {filename: input, schema: jsyaml.YAML11_SCHEMA});
   const sourceForTypes = typesOutput ? clone(source) : null;
   const rules = exports.transform(source);
   // console.log(JSON.stringify(rules, null, 2));
