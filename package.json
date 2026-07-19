@@ -46,8 +46,9 @@
     "yargs": "17.5.1"
   },
   "devDependencies": {
-    "eslint": "9.x",
-    "npm-check-updates": "^20.0.0",
-    "reviewable-configs": "Reviewable/reviewable-configs"
+    "eslint": "^10.7.0",
+    "globals": "^17.7.0",
+    "npm-check-updates": "^22.2.9",
+    "reviewable-configs": "Reviewable/reviewable-configs#master"
   }
 }
