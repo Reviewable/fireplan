@@ -5,6 +5,12 @@
   "engines": {
     "node": ">=24.0"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.15.0 || >=26.0.0"
+    }
+  },
   "packageManager": "yarn@4.18.1",
   "keywords": [
     "Firebase",
